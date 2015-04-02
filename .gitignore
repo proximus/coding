@@ -1,0 +1,6 @@
+# Ignore rules for vim
+*.swp
+
+# Ignore rules for C++
+a.out
+*.o
