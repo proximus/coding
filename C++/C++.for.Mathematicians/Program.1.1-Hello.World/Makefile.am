@@ -2,4 +2,4 @@
 AUTOMAKE_OPTIONS = foreign
 
 # Specify all sub directories
-SUBDIRS = src
+SUBDIRS = src doc
