@@ -1,0 +1,30 @@
+███████╗██╗      █████╗ ███████╗██╗  ██╗
+██╔════╝██║     ██╔══██╗██╔════╝██║  ██║
+█████╗  ██║     ███████║███████╗███████║
+██╔══╝  ██║     ██╔══██║╚════██║██╔══██║
+██║     ███████╗██║  ██║███████║██║  ██║
+╚═╝     ╚══════╝╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝
+
+AUTHOR:
+
+    Samuel Gabrielsson samuel.gabrielsson@gmail.com
+
+
+WEBPAGE:
+
+    https://
+
+
+WHAT IS FLASH?
+
+    FLASH is a script to copy images to NAND or NOR Flash Memory
+
+
+INSTALLING:
+
+    No installation required
+
+
+RUNNING THE FLASH SCRIPT:
+
+    ./flash

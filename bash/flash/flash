@@ -1,0 +1,191 @@
+#!/bin/sh
+#===============================================================================
+#
+#         FILE: flash
+#
+#        USAGE: ./flash
+#
+#  DESCRIPTION: The flash script will:
+#               1. Mount the partition with images
+#               2. Erase contents on MTD partitions
+#               3. Erase contents on MTD partitions (UBI)
+#               4. Resize images if needed
+#               5. Copy images to flash memory
+#               6. Unmount the partition with images
+#
+#      OPTIONS: ---
+# REQUIREMENTS: ---
+#         BUGS: ---
+#        NOTES: ---
+#  ORIG AUTHOR: Samuel Gabrielsson <samuel.gabrielsson@gmail.com>
+# ORGANIZATION: ---
+#      VERSION: 1.0
+#      CREATED: 2017-08-21 14:17:30
+#     REVISION: ---
+#      CHANGES: ---
+#
+#===============================================================================
+# Get the directory and program name of this script
+dir=$(dirname $(realpath "${0}")); if [ ! -d "$dir" ]; then dir="$PWD"; fi
+prog=$(basename "${0}")
+
+# Source generic library files
+. "$dir/lib/exit-status.sh"
+. "$dir/lib/generic.sh"
+
+# Default location to config and lib files
+cfg_file="${dir}/cfg/flash.cfg"
+lib_file="${dir}/lib/flash.sh"
+
+#===============================================================================
+# Parse arguments from commandline using getopt
+#===============================================================================
+SHORTOPTS="c:epf:svqdh"
+LONGOPTS="copy:,erase-bootstrap,prepare-data,config-file:,show-config,verbose,quiet,debug,help"
+OPTS=$(getopt --name "$0" \
+              --options ${SHORTOPTS} \
+              --longoptions ${LONGOPTS} \
+              -- "$@")
+# Print error and quit if exit status of getopt returns an error
+if [ $? != 0 ]; then
+    exit 1
+fi
+
+eval set -- "${OPTS}"
+while true; do
+    case "${1}" in
+    -c|--copy)
+        # Enable copying of a single image to partition
+        MY_IMAGE="${2}"
+        shift 2
+        ;;
+    -e|--erase-bootstrap)
+        # Enable removing bootsrap so we can boot MMC/SD card
+        do_erase_bootstrap="true"
+        shift
+        ;;
+    -p|--prepare-data)
+        # Format the data partition
+        do_format_data="true"
+        shift
+        ;;
+    -f|--config-file)
+        # Config file from command line
+        cfg_file_="${2}"
+        shift 2
+        ;;
+    -s|--show-config)
+        # Enable printout of configuration file
+        do_show_config="true"
+        shift
+        ;;
+    -v|--verbose)
+        # Enable verbose mode
+        do_verbose="true"
+        shift
+        ;;
+    -q|--quiet)
+        # Enable silent/quiet mode
+        do_quiet="true"
+        shift
+        ;;
+    -d|--debug)
+        # Enable shell debug mode
+        set -x
+        shift
+        ;;
+    -h|--help)
+        # Print out help message
+        do_help_="true"
+        shift
+        ;;
+    --)
+        # Shift opts and break the while loop
+        shift
+        break
+        ;;
+    *)
+        # For everything else just break the while loop
+        break
+        ;;
+    esac
+done
+
+#===============================================================================
+# Source specific library and configuration file. If the variable is set from
+# command line, then make it the default. Otherwise source the global file.
+#===============================================================================
+# Source program specific config file
+if [ ! -z ${cfg_file_+x} ]; then
+    cfg_file="${cfg_file_}"
+    printf "Using config file: \"${cfg_file}\"\n"
+fi
+. "${cfg_file}"
+
+# Source program specific library file
+. "${lib_file}"
+
+# Print the ASCII art version of the program name
+if [ -z ${do_quiet+X} ]; then
+    print_prog_name
+fi
+
+# If the variable is set from command line, then print usage message and exit
+if [ ! -z ${do_help_+x} ]; then
+    print_usage; exit 0
+fi
+
+#===============================================================================
+# MAIN
+#===============================================================================
+# Erase the bootstrap to enable booting from SD/MMC card and exit
+if [ ! -z ${do_erase_bootstrap+x} ]; then
+    flash_erase "${IMAGE_BOOTSTRAP} ${MTD_BOOTSTRAP}"
+    printf "\nRe-boot device to boot-up from SD/MMC card\n"
+    handle_exit
+fi
+
+# Print configuration file and exit
+if [ ! -z ${do_show_config+x} ]; then
+    print_config "${cfg_file}"
+    handle_exit
+fi
+
+# Copy image file to MTD partition and exit
+if [ ! -z ${MY_IMAGE+x} ]; then
+    flash_erase "${MY_IMAGE}"
+    file_resize "${MY_IMAGE}"
+    flash_copy  "${MY_IMAGE}"
+    handle_exit
+fi
+
+# Erase contents on mtd partitions
+flash_erase     "${IMAGES}"
+
+# Format the MTD data partition
+if [ ! -z ${do_format_data+x} ]; then
+    format_data
+fi
+
+# Mount a partition where the image files reside
+mount_device
+
+# Copy images from SD/MMC to target
+copy_images     "${IMAGES}"
+
+# Do some sanity checks (check for files and run md5sum)
+sanity_check    "${IMAGES}"
+
+# Resize images
+file_resize     "${IMAGES}"
+
+# Copy images to flash
+flash_copy      "${IMAGES}"
+
+# Unmount the partition
+umount_device
+
+printf "\nRe-boot device to boot-up from NAND memory\n"
+
+# Print a nice summary and return with appropriate exit status
+handle_exit
